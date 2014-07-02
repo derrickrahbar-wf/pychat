@@ -1,17 +1,11 @@
-
 """
-A basic, multiclient 'chat server' using Python's select module
-with interrupt handling.
-
-Entering any line of input at the terminal will exit the server.
+Basic chat server which allows 5 clients to connect simultaneously
 """
 
 import select
 import socket
 import sys
 import signal
-import random, string
-
 
 from communication import send, receive
 
@@ -72,23 +66,21 @@ class ChatServer(object):
                 if s == self.server:
                     # handle the server socket
                     client, address = self.server.accept()
-                    print 'chatserver: got connection %d from %s' % (client.fileno(), address)
+                    print 'A connection came in from address: %s' % (address[0])
 
-                    cname = receive(client)
+                    cname = client.recv(BUFSIZ)
                     self.clients += 1
                     inputs.append(client)
-                    send(client, 'CLIENT: ' + str(address[0]))
+                    client.send('1')
 
                     # Sometimes during a remote socket connection, the client will initally send an empty packet
                     # followed by a packed filled with the contents of whats usually sent in the initial request
                     # (i.e. the name of the client)
                     if len(cname) == 0: cname = '.'
                     self.clientmap[client] = (address, cname)
-
-                    msg = '\n(Connected: New client (%d) from %s)' % (self.clients, self.get_name(client))
+                    msg = '\n%s has joined the chatroom' % (cname)
                     for o in self.outputs:
-                        #o.send(msg)
-                        send(o, msg)
+                        o.send(msg)
                     self.outputs.append(client)
 
                 elif s == sys.stdin:
@@ -102,18 +94,19 @@ class ChatServer(object):
                         data = s.recv(BUFSIZ)
                         #data = receive(s)
                         if data:
-                            # Send as new client's message...
                             print self.get_name(s)
                             if self.get_name(s)[0] == '.':
+                                print data
                                 name = data.split(': ')[1].replace('\'','').split('\n')[0]
-                                print "madds name %s" %name
+                                name = "test name"
                                 self.set_name(s, name)
 
                             msg = '\n[' + self.get_name(s) + ']> ' + data
-                            # Send data to all except ourselves
-                            for o in self.outputs:
-                                if o != s:
-                                    o.send(msg)
+
+                            # Send data to everyone in chat room
+                            for client in self.outputs:
+                                if client != s:
+                                    client.send(msg)
                         else:
                             print 'chatserver: %d hung up' % s.fileno()
                             self.clients -= 1
@@ -124,7 +117,7 @@ class ChatServer(object):
                             # Notify others in the chat room about client that is leaving
                             msg = '\n(%s Left the chat room.)' % self.get_name(s)
                             for o in self.outputs:
-                                send(o, msg)
+                                o.send(msg)
                     except socket.error, e:
                         # Remove
                         inputs.remove(s)

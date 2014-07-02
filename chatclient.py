@@ -17,30 +17,23 @@ class ChatClient(object):
         self.port = int(port)
         self.host = host
         # Initial prompt
-        self.prompt = '[%s]' % self.name
+        self.prompt = '[%s@%s]> ' % (self.name, socket.gethostbyname(socket.gethostname()))
         # Connect to server at port
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((host, self.port))
-            print 'Connected to chat server@%d' % self.port
-            # Send my name...
-            send(self.sock, self.name)
+            print 'Connected to chat server @%d' % self.port
 
-            #data = receive(self.sock)
+            #send(self.sock, self.name)
+            self.sock.send(self.name)
             data = self.sock.recv(BUFSIZ)
-
-            # Contains client address, set it
-            #addr = data.split('CLIENT: ')[1]
-            #self.prompt = '[' + '@'.join((self.name, addr)) + ']> '
-
-            self.prompt = '[%s]>' % self.name
 
         except socket.error, e:
             print e
             print 'Could not connect to chat server @%d' % self.port
             sys.exit(1)
 
-    def cmdloop(self):
+    def chat_loop(self):
 
         while not self.flag:
             try:
@@ -53,10 +46,8 @@ class ChatClient(object):
                 for i in inputready:
                     if i == 0:
                         data = sys.stdin.readline().strip()
-                        #if data: send(self.sock, data)
                         if data: self.sock.send(data)
                     elif i == self.sock:
-                        #data = receive(self.sock)
                         data = self.sock.recv(BUFSIZ)
                         if not data:
                             print 'Shutting down.'
@@ -74,4 +65,5 @@ class ChatClient(object):
 
 if __name__ == "__main__":
     client = ChatClient(sys.argv[1],sys.argv[2], int(sys.argv[3]))
-    client.cmdloop()
+    client.chat_loop()
+
